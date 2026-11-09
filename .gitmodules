@@ -1,0 +1,3 @@
+[submodule "toolkit-common"]
+	path = toolkit-common
+	url = https://github.com/KihiraLove/kihiras-tools-common.git

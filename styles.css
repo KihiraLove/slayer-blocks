@@ -1,0 +1,239 @@
+.page-heading {
+  padding: 0 4px 18px;
+}
+
+.page-heading p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.planner {
+  margin-block-end: 32px;
+}
+
+.master-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.master-tab {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  align-content: center;
+  min-height: 76px;
+  padding: 8px 4px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.83rem;
+  font-weight: 700;
+}
+
+.master-tab:hover,
+.master-tab[aria-selected="true"] {
+  border-color: var(--accent);
+  background: var(--panel-2);
+  color: var(--accent-strong);
+}
+
+.master-portraits {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+}
+
+.master-portraits img {
+  object-fit: contain;
+}
+
+.planner-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.summary-stat {
+  display: grid;
+  gap: 5px;
+  padding: 10px 14px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.summary-stat strong {
+  color: var(--accent-strong);
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.planner-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 21rem);
+  align-items: start;
+  gap: 16px;
+}
+
+.planner-results {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.task-help,
+.result-empty {
+  margin: 8px 0 14px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.task-table-wrap {
+  max-height: min(62vh, 680px);
+  overflow: auto;
+}
+
+.task-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.task-table :is(th, td) {
+  padding: 7px 6px;
+  border-bottom: 1px solid var(--border-soft);
+  text-align: center;
+}
+
+.task-table th[scope="row"],
+.task-table .requirement-cell {
+  text-align: left;
+}
+
+.task-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.task-table .excluded-task th,
+.task-table .excluded-task td:last-child {
+  color: var(--muted);
+}
+
+.task-table label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.task-table input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  flex: none;
+}
+
+.mobile-label {
+  display: none;
+}
+
+.result-list {
+  margin: 10px 0;
+  padding-inline-start: 1.5rem;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+
+ul.result-list {
+  list-style: none;
+  padding: 0;
+}
+
+.result-list li > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 5px 0;
+}
+
+.result-list strong {
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+}
+
+.result-panel summary {
+  color: var(--muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+@container toolkit-page (max-width: 1140px) {
+  .planner-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .planner-results {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  }
+}
+
+@container toolkit-page (max-width: 680px) {
+  .master-tabs {
+    display: flex;
+    overflow-x: auto;
+    padding: 4px;
+    scrollbar-width: thin;
+  }
+
+  .master-tab { flex: 0 0 7.5rem; }
+
+  .task-table,
+  .task-table tbody {
+    display: block;
+  }
+
+  .task-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .task-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .task-table :is(th, td) {
+    padding: 0;
+    border: 0;
+    text-align: left;
+  }
+
+  .task-table th[scope="row"],
+  .task-table .requirement-cell {
+    grid-column: 1 / -1;
+  }
+
+  .mobile-label {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+}
