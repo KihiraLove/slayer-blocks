@@ -5,7 +5,7 @@
 
 [Open Slayer Task Blocks](https://kihiralove.github.io/slayer-blocks/) to compare assignment odds and plan blocks for nine Slayer master tabs.
 
-The task lists, amounts, weights, and unlock names come from the supplied Slayer tasks workbook. Every checkbox starts unchecked. Checking an unmet unlock requirement or a block removes that task's weight from the pool. Preferred tasks contribute their remaining odds to the preferred-task total. Recommendations rank available, non-preferred tasks by base weight and mark blocks that are already selected.
+The task lists, amounts, weights, and unlock names come from the supplied Slayer tasks workbook. On a first visit, every checkbox starts unchecked. Matching unlock requirements stay in sync across masters. With consent, a cookie saves the active tab, unlock requirements, preferred tasks, and blocks. Cookie settings in the footer lets you change your choice. Checking an unmet unlock requirement or a block removes that task's weight from the pool. Preferred tasks contribute their remaining odds to the preferred-task total. Recommendations rank available, non-preferred tasks by base weight and mark blocks that are already selected.
 
 ## Run and test
 

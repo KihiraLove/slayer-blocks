@@ -275,7 +275,7 @@ export const masters = [
       {"name": "Kalphite", "amount": "120-170", "weight": 9},
       {"name": "Kurask", "amount": "120-170", "weight": 3},
       {"name": "Lesser nagua", "amount": "55-120", "weight": 2},
-      {"name": "Lizardmen", "amount": "90-110", "requirement": "Reptile got ripper", "weight": 8},
+      {"name": "Lizardmen", "amount": "90-110", "requirement": "Reptile got ripped", "weight": 8},
       {"name": "Metal dragons", "amount": "30-40", "extendedAmount": "150-200", "weight": 15},
       {"name": "Mutated zygomites", "amount": "10-25", "weight": 2},
       {"name": "Nechryael", "amount": "110", "extendedAmount": "200-250", "weight": 7},

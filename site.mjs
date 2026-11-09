@@ -1,10 +1,60 @@
+import { mountToolkitCookiePreferences } from "./toolkit-common/cookies.mjs";
 import { mountToolkitHeader, mountToolkitFooter } from "./toolkit-common/toolkit.mjs";
 import { calculateAssignments, recommendedBlockCount } from "./calculator.mjs";
-import { masters } from "./tasks.mjs";
+import { masters } from "./tasks.mjs?v=shared-cookies";
 
+// The strings in the cookie use the task order in tasks.mjs. Bump this version if that order changes.
+const CONFIG_VERSION = 1;
+const unmetRequirements = new Set();
+const choices = new Map(masters.map((master) => [
+  master.id, master.tasks.map(() => ({ preferred: false, blocked: false })),
+]));
+let selectedMaster = 0;
+
+function currentConfiguration() {
+  return {
+    version: CONFIG_VERSION,
+    master: masters[selectedMaster].id,
+    unmet: [...unmetRequirements],
+    choices: Object.fromEntries([...choices].map(([id, tasks]) => [
+      id, tasks.map(({ preferred, blocked }) => Number(preferred) + 2 * Number(blocked)).join(""),
+    ])),
+  };
+}
+
+function restoreConfiguration(config) {
+  if (config?.version !== CONFIG_VERSION) return;
+
+  const masterIndex = masters.findIndex((master) => master.id === config.master);
+  if (masterIndex !== -1) selectedMaster = masterIndex;
+  if (Array.isArray(config.unmet)) {
+    const knownRequirements = new Set(masters.flatMap((master) => master.tasks.map((task) => task.requirement)).filter(Boolean));
+    for (const requirement of config.unmet) {
+      if (knownRequirements.has(requirement)) unmetRequirements.add(requirement);
+    }
+  }
+  for (const [id, tasks] of choices) {
+    const saved = config.choices?.[id];
+    if (typeof saved !== "string" || saved.length !== tasks.length || !/^[0-3]+$/.test(saved)) continue;
+    for (const [index, task] of tasks.entries()) {
+      const flags = Number(saved[index]);
+      task.preferred = (flags & 1) !== 0;
+      task.blocked = (flags & 2) !== 0;
+    }
+  }
+}
+
+const preferences = mountToolkitCookiePreferences({
+  consentCookie: "slayer_cookie_consent",
+  configCookie: "slayer_task_config",
+  description: "This site saves your selected Slayer master and task settings in a cookie so they are restored next time you visit. A small consent cookie remembers this choice.",
+  getConfig: currentConfiguration,
+});
+restoreConfiguration(preferences.config);
 mountToolkitHeader(document.querySelector("#toolkit-header"));
 mountToolkitFooter(document.querySelector("#toolkit-footer"), {
   githubUrl: "https://github.com/KihiraLove/slayer-blocks",
+  cookieSettings: preferences.settingsButton,
 });
 
 const tabList = document.querySelector(".master-tabs");
@@ -63,16 +113,17 @@ function addValue(row, label, text) {
   return value;
 }
 
-function addFlag(row, label, accessibleLabel, requirement) {
+function addFlag(row, label, accessibleLabel, flag, requirement) {
   const cell = makeCell(row, label);
   const field = document.createElement("label");
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
+  checkbox.dataset.flag = flag;
   checkbox.setAttribute("aria-label", accessibleLabel);
   field.append(checkbox);
   if (requirement !== undefined) {
     cell.className = "requirement-cell";
-    field.append(requirement || "—");
+    field.append(requirement);
   }
   cell.append(field);
   return checkbox;
@@ -89,10 +140,15 @@ function makeTaskRow(body, task) {
 
   addValue(row, "Amount", task.amount);
   addValue(row, "Extended", task.extendedAmount ?? "—");
-  const unmet = addFlag(row, "Unlock requirement", "Mark " + task.name + " unavailable", task.requirement ?? "");
+  let unmet = null;
+  if (task.requirement) {
+    unmet = addFlag(row, "Unlock requirement", "Mark " + task.name + " unavailable", "unmet", task.requirement);
+  } else {
+    row.insertCell().className = "empty-requirement";
+  }
   addValue(row, "Weight", task.weight);
-  const preferred = addFlag(row, "Preferred", "Prefer " + task.name);
-  const blocked = addFlag(row, "Blocked", "Block " + task.name);
+  const preferred = addFlag(row, "Preferred", "Prefer " + task.name, "preferred");
+  const blocked = addFlag(row, "Blocked", "Block " + task.name, "blocked");
   const weight = addValue(row, "Final weight", "");
   const odds = addValue(row, "Odds", "");
 
@@ -116,16 +172,9 @@ function showResults(list, tasks, formatValue) {
 
 function renderMaster(panel, master) {
   panel.innerHTML = `
-    <div class="planner-summary" role="status">
-      <div class="panel summary-stat"><span>Assignment weight</span><strong data-total-weight></strong></div>
-      <div class="panel summary-stat"><span>Tasks in pool</span><strong data-pool-count></strong></div>
-      <div class="panel summary-stat"><span>Tasks blocked</span><strong data-block-count></strong></div>
-      <div class="panel summary-stat"><span>Preferred task odds</span><strong data-preferred-chance></strong></div>
-    </div>
     <div class="planner-layout">
       <section class="panel task-panel">
         <h2>Assignments</h2>
-        <p class="task-help">Check an unmet unlock requirement to remove that task from the pool. Mark the tasks you want as preferred.</p>
         <div class="task-table-wrap" role="region" aria-label="Scrollable assignment table" tabindex="0">
           <table class="task-table" role="table" aria-label="Slayer assignments">
             <thead role="rowgroup">
@@ -148,11 +197,10 @@ function renderMaster(panel, master) {
       <div class="planner-results">
         <section class="panel result-panel">
           <h2>Recommended blocks</h2>
-          <p class="task-help">Highest-weight tasks with requirements met and not marked preferred. Existing blocks stay in the list.</p>
           <p class="result-empty" data-no-recommendations>No block candidates.</p>
           <ol class="result-list" data-recommended></ol>
           <details data-more-results>
-            <summary>More candidates</summary>
+            <summary>Full list</summary>
             <ol class="result-list" start="8" data-remaining></ol>
           </details>
         </section>
@@ -165,10 +213,6 @@ function renderMaster(panel, master) {
     </div>`;
   const body = panel.querySelector("tbody");
   const rows = master.tasks.map((task) => makeTaskRow(body, task));
-  const totalWeight = panel.querySelector("[data-total-weight]");
-  const poolCount = panel.querySelector("[data-pool-count]");
-  const blockCount = panel.querySelector("[data-block-count]");
-  const preferredChance = panel.querySelector("[data-preferred-chance]");
   const recommendedList = panel.querySelector("[data-recommended]");
   const remainingList = panel.querySelector("[data-remaining]");
   const preferredList = panel.querySelector("[data-preferred]");
@@ -176,21 +220,23 @@ function renderMaster(panel, master) {
   const noRecommendations = panel.querySelector("[data-no-recommendations]");
   const noPreferred = panel.querySelector("[data-no-preferred]");
 
+  const taskChoices = choices.get(master.id);
+
   function refresh() {
-    const flags = rows.map(({ unmet, preferred, blocked }) => ({
-      unmet: unmet.checked, preferred: preferred.checked, blocked: blocked.checked,
+    const flags = master.tasks.map((task, index) => ({
+      ...taskChoices[index],
+      unmet: unmetRequirements.has(task.requirement),
     }));
     const result = calculateAssignments(master.tasks, flags);
     for (const [index, task] of result.assignments.entries()) {
       const row = rows[index];
+      if (row.unmet) row.unmet.checked = task.unmet;
+      row.preferred.checked = task.preferred;
+      row.blocked.checked = task.blocked;
       row.weight.textContent = task.finalWeight;
       row.odds.textContent = percent.format(task.odds);
       row.weight.closest("tr").classList.toggle("excluded-task", task.finalWeight === 0);
     }
-    totalWeight.textContent = result.totalWeight;
-    poolCount.textContent = result.assignments.filter((task) => task.finalWeight > 0).length;
-    blockCount.textContent = flags.filter((flag) => flag.blocked).length;
-    preferredChance.textContent = percent.format(result.preferredChance);
 
     const formatWeight = (task) => task.blocked ? task.weight + " · blocked" : String(task.weight);
     showResults(recommendedList, result.recommended.slice(0, recommendedBlockCount), formatWeight);
@@ -201,18 +247,36 @@ function renderMaster(panel, master) {
     noPreferred.hidden = result.preferred.length > 0;
   }
 
-  body.addEventListener("change", refresh);
-  refresh();
-}
+  body.addEventListener("change", (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    const index = input.closest("tr").sectionRowIndex;
+    const flag = input.dataset.flag;
+    if (flag === "unmet") {
+      const { requirement } = master.tasks[index];
+      if (input.checked) unmetRequirements.add(requirement);
+      else unmetRequirements.delete(requirement);
+      for (const refreshMaster of refreshMasters) refreshMaster?.();
+    } else {
+      taskChoices[index][flag] = input.checked;
+      refresh();
+    }
+    preferences.save();
+  });
 
+  return refresh;
+}
 const tabs = masters.map(makeTab);
 const panels = masters.map(makePanel);
+const refreshMasters = [];
 tabList.append(...tabs);
 panelList.append(...panels);
 
 function selectMaster(index) {
   const activePanel = panels[index];
-  if (!activePanel.hasChildNodes()) renderMaster(activePanel, masters[index]);
+  refreshMasters[index] ??= renderMaster(activePanel, masters[index]);
+  refreshMasters[index]();
+  selectedMaster = index;
   for (const [position, tab] of tabs.entries()) {
     const selected = position === index;
     tab.setAttribute("aria-selected", String(selected));
@@ -222,7 +286,10 @@ function selectMaster(index) {
 }
 
 for (const [index, tab] of tabs.entries()) {
-  tab.addEventListener("click", () => selectMaster(index));
+  tab.addEventListener("click", () => {
+    selectMaster(index);
+    preferences.save();
+  });
   tab.addEventListener("keydown", (event) => {
     const destinations = {
       ArrowLeft: (index + tabs.length - 1) % tabs.length,
@@ -234,7 +301,8 @@ for (const [index, tab] of tabs.entries()) {
     event.preventDefault();
     const next = destinations[event.key];
     selectMaster(next);
+    preferences.save();
     tabs[next].focus();
   });
 }
-selectMaster(0);
+selectMaster(selectedMaster);
