@@ -64,6 +64,92 @@
   line-height: 1.45;
 }
 
+.assignment-heading,
+.assignment-title,
+.block-slots,
+.block-slots label,
+.block-only label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.assignment-heading {
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.assignment-title small,
+.block-slots,
+.block-only {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.block-slots input {
+  width: 5rem;
+  min-height: 30px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.block-slots small {
+  font-size: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.slot-error {
+  margin: 6px 0 0;
+  color: var(--danger);
+  font-size: 0.82rem;
+}
+
+.slot-error:empty { display: none; }
+
+.block-only {
+  margin-top: 10px;
+}
+
+.block-only input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: inherit;
+}
+
+.sort-button:hover,
+.task-table [aria-sort] .sort-button {
+  color: var(--accent-strong);
+}
+
+.task-table [aria-sort] .sort-button span {
+  flex: none;
+  border-inline: 3px solid transparent;
+}
+
+.task-table [aria-sort="ascending"] .sort-button span {
+  border-bottom: 5px solid currentColor;
+}
+
+.task-table [aria-sort="descending"] .sort-button span {
+  border-top: 5px solid currentColor;
+}
+
 .task-table-wrap {
   margin-top: 12px;
   max-height: min(62vh, 680px);
@@ -181,11 +267,25 @@ ul.result-list {
   }
 
   .task-table thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: block;
+    overflow-x: auto;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .task-table thead tr {
+    display: flex;
+    gap: 14px;
+    padding: 6px 8px;
+  }
+
+  .task-table thead th {
+    position: static;
+    flex: none;
+    white-space: nowrap;
   }
 
   .task-table tbody tr {

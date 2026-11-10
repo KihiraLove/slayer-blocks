@@ -1,5 +1,3 @@
-export const recommendedBlockCount = 7;
-
 export function calculateAssignments(tasks, flags = []) {
   const assignments = tasks.map((task, index) => {
     const { unmet = false, preferred = false, blocked = false } = flags[index] ?? {};
@@ -20,4 +18,15 @@ export function calculateAssignments(tasks, flags = []) {
     preferred,
     preferredChance: preferred.reduce((total, task) => total + task.odds, 0),
   };
+}
+const assignmentTextOrder = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
+
+export function sortAssignmentIndexes(assignments, column, direction) {
+  return assignments.map((_, index) => index).sort((leftIndex, rightIndex) => {
+    const left = assignments[leftIndex][column];
+    const right = assignments[rightIndex][column];
+    if (left == null || right == null) return Number(left == null) - Number(right == null);
+    const order = typeof left === "string" ? assignmentTextOrder.compare(left, right) : left - right;
+    return direction === "descending" ? -order : order;
+  });
 }

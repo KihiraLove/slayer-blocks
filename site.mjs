@@ -1,56 +1,17 @@
 import { mountToolkitCookiePreferences } from "./toolkit-common/cookies.mjs";
 import { mountToolkitHeader, mountToolkitFooter } from "./toolkit-common/toolkit.mjs";
-import { calculateAssignments, recommendedBlockCount } from "./calculator.mjs";
-import { masters } from "./tasks.mjs?v=shared-cookies";
-
-// The strings in the cookie use the task order in tasks.mjs. Bump this version if that order changes.
-const CONFIG_VERSION = 1;
-const unmetRequirements = new Set();
-const choices = new Map(masters.map((master) => [
-  master.id, master.tasks.map(() => ({ preferred: false, blocked: false })),
-]));
-let selectedMaster = 0;
-
-function currentConfiguration() {
-  return {
-    version: CONFIG_VERSION,
-    master: masters[selectedMaster].id,
-    unmet: [...unmetRequirements],
-    choices: Object.fromEntries([...choices].map(([id, tasks]) => [
-      id, tasks.map(({ preferred, blocked }) => Number(preferred) + 2 * Number(blocked)).join(""),
-    ])),
-  };
-}
-
-function restoreConfiguration(config) {
-  if (config?.version !== CONFIG_VERSION) return;
-
-  const masterIndex = masters.findIndex((master) => master.id === config.master);
-  if (masterIndex !== -1) selectedMaster = masterIndex;
-  if (Array.isArray(config.unmet)) {
-    const knownRequirements = new Set(masters.flatMap((master) => master.tasks.map((task) => task.requirement)).filter(Boolean));
-    for (const requirement of config.unmet) {
-      if (knownRequirements.has(requirement)) unmetRequirements.add(requirement);
-    }
-  }
-  for (const [id, tasks] of choices) {
-    const saved = config.choices?.[id];
-    if (typeof saved !== "string" || saved.length !== tasks.length || !/^[0-3]+$/.test(saved)) continue;
-    for (const [index, task] of tasks.entries()) {
-      const flags = Number(saved[index]);
-      task.preferred = (flags & 1) !== 0;
-      task.blocked = (flags & 2) !== 0;
-    }
-  }
-}
+import { calculateAssignments, sortAssignmentIndexes } from "./calculator.mjs?v=block-slots";
+import { blockListKey, createPlanner } from "./planner.mjs";
+import { masters } from "./tasks.mjs?v=block-slots";
 
 const preferences = mountToolkitCookiePreferences({
   consentCookie: "slayer_cookie_consent",
   configCookie: "slayer_task_config",
   description: "This site saves your selected Slayer master and task settings in a cookie so they are restored next time you visit. A small consent cookie remembers this choice.",
-  getConfig: currentConfiguration,
+  getConfig: () => planner.configuration(selectedMaster),
 });
-restoreConfiguration(preferences.config);
+const planner = createPlanner(masters, preferences.config);
+let selectedMaster = planner.initialMaster;
 mountToolkitHeader(document.querySelector("#toolkit-header"));
 mountToolkitFooter(document.querySelector("#toolkit-footer"), {
   githubUrl: "https://github.com/KihiraLove/slayer-blocks",
@@ -129,8 +90,9 @@ function addFlag(row, label, accessibleLabel, flag, requirement) {
   return checkbox;
 }
 
-function makeTaskRow(body, task) {
+function makeTaskRow(body, task, index) {
   const row = body.insertRow();
+  row.dataset.taskIndex = String(index);
   row.setAttribute("role", "row");
   const name = document.createElement("th");
   name.scope = "row";
@@ -152,7 +114,7 @@ function makeTaskRow(body, task) {
   const weight = addValue(row, "Final weight", "");
   const odds = addValue(row, "Odds", "");
 
-  return { unmet, preferred, blocked, weight, odds };
+  return { element: row, unmet, preferred, blocked, weight, odds };
 }
 
 function showResults(list, tasks, formatValue) {
@@ -174,20 +136,34 @@ function renderMaster(panel, master) {
   panel.innerHTML = `
     <div class="planner-layout">
       <section class="panel task-panel">
-        <h2>Assignments</h2>
+        <div class="assignment-heading">
+          <div class="assignment-title">
+            <h2>Assignments</h2>
+            <small data-shared-list hidden></small>
+          </div>
+          <div class="block-slots">
+            <label>
+              <span>Number of block slots</span>
+              <input type="number" min="0" step="1" inputmode="numeric">
+            </label>
+            <small data-slots-used aria-live="polite"></small>
+          </div>
+        </div>
+        <p class="slot-error" data-slot-error role="status"></p>
+        <div class="block-only" data-block-only hidden></div>
         <div class="task-table-wrap" role="region" aria-label="Scrollable assignment table" tabindex="0">
           <table class="task-table" role="table" aria-label="Slayer assignments">
             <thead role="rowgroup">
               <tr role="row">
-                <th scope="col">Task</th>
-                <th scope="col">Amount</th>
-                <th scope="col">Extended</th>
-                <th scope="col">Unlock requirement</th>
-                <th scope="col">Weight</th>
-                <th scope="col">Preferred</th>
-                <th scope="col">Blocked</th>
-                <th scope="col">Final weight</th>
-                <th scope="col">Odds</th>
+                <th scope="col"><button type="button" class="sort-button" data-sort="name">Task<span aria-hidden="true"></span></button></th>
+                <th scope="col"><button type="button" class="sort-button" data-sort="amount">Amount<span aria-hidden="true"></span></button></th>
+                <th scope="col"><button type="button" class="sort-button" data-sort="extendedAmount">Extended<span aria-hidden="true"></span></button></th>
+                <th scope="col"><button type="button" class="sort-button" data-sort="requirement">Unlock requirement<span aria-hidden="true"></span></button></th>
+                <th scope="col"><button type="button" class="sort-button" data-sort="weight">Weight<span aria-hidden="true"></span></button></th>
+                <th scope="col"><button type="button" class="sort-button" data-sort="preferred">Preferred<span aria-hidden="true"></span></button></th>
+                <th scope="col"><button type="button" class="sort-button" data-sort="blocked">Blocked<span aria-hidden="true"></span></button></th>
+                <th scope="col"><button type="button" class="sort-button" data-sort="finalWeight">Final weight<span aria-hidden="true"></span></button></th>
+                <th scope="col"><button type="button" class="sort-button" data-sort="odds">Odds<span aria-hidden="true"></span></button></th>
               </tr>
             </thead>
             <tbody role="rowgroup"></tbody>
@@ -201,7 +177,7 @@ function renderMaster(panel, master) {
           <ol class="result-list" data-recommended></ol>
           <details data-more-results>
             <summary>Full list</summary>
-            <ol class="result-list" start="8" data-remaining></ol>
+            <ol class="result-list" data-remaining></ol>
           </details>
         </section>
         <section class="panel result-panel">
@@ -212,7 +188,7 @@ function renderMaster(panel, master) {
       </div>
     </div>`;
   const body = panel.querySelector("tbody");
-  const rows = master.tasks.map((task) => makeTaskRow(body, task));
+  const rows = master.tasks.map((task, index) => makeTaskRow(body, task, index));
   const recommendedList = panel.querySelector("[data-recommended]");
   const remainingList = panel.querySelector("[data-remaining]");
   const preferredList = panel.querySelector("[data-preferred]");
@@ -220,29 +196,109 @@ function renderMaster(panel, master) {
   const noRecommendations = panel.querySelector("[data-no-recommendations]");
   const noPreferred = panel.querySelector("[data-no-preferred]");
 
-  const taskChoices = choices.get(master.id);
+  const blockedTasks = planner.blocked(master.id);
+  const preferredTasks = planner.preferred.get(master.id);
+  const partner = masters.find((other) => other.id !== master.id && blockListKey(other.id) === blockListKey(master.id));
+  const blockOnly = panel.querySelector("[data-block-only]");
+  const extraBlocks = [];
+  if (partner) {
+    const shared = panel.querySelector("[data-shared-list]");
+    shared.textContent = master.id === "spria" ? "Blocklist shared with Turael/Aya" : "Block list shared with Spria";
+    shared.hidden = false;
+    for (const task of partner.tasks) {
+      if (master.tasks.some(({ name }) => name === task.name)) continue;
+      const label = document.createElement("label");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.setAttribute("aria-label", "Block " + task.name);
+      label.append(input, task.name + " (" + partner.name + " only)");
+      blockOnly.append(label);
+      extraBlocks.push({ name: task.name, input });
+      input.addEventListener("change", () => {
+        planner.setBlocked(master.id, task.name, input.checked);
+        refreshAll();
+        preferences.save();
+      });
+    }
+    blockOnly.hidden = extraBlocks.length === 0;
+  }
+  const slotInput = panel.querySelector(".block-slots input");
+  const slotsUsed = panel.querySelector("[data-slots-used]");
+  const slotError = panel.querySelector("[data-slot-error]");
+  slotInput.addEventListener("change", () => {
+    if (!planner.setBlockSlots(slotInput.valueAsNumber)) {
+      slotInput.value = planner.blockSlots;
+      const minimum = planner.minimumBlockSlots();
+      slotError.textContent = minimum === 0
+        ? "Enter a non-negative whole number of block slots."
+        : "Enter a whole number of at least " + minimum + " to keep your current blocks.";
+      return;
+    }
+    refreshAll();
+    preferences.save();
+  });
+
+  let sortColumn = "name";
+  let sortDirection = "ascending";
+  const sortButtons = [...panel.querySelectorAll("[data-sort]")];
+  function updateSortHeader() {
+    for (const button of sortButtons) {
+      const column = button.closest("th");
+      if (button.dataset.sort === sortColumn) column.setAttribute("aria-sort", sortDirection);
+      else column.removeAttribute("aria-sort");
+    }
+  }
+  for (const button of sortButtons) {
+    button.addEventListener("click", () => {
+      const column = button.dataset.sort;
+      sortDirection = column === sortColumn && sortDirection === "ascending" ? "descending" : "ascending";
+      sortColumn = column;
+      updateSortHeader();
+      refresh();
+    });
+  }
+  updateSortHeader();
 
   function refresh() {
-    const flags = master.tasks.map((task, index) => ({
-      ...taskChoices[index],
-      unmet: unmetRequirements.has(task.requirement),
+    const flags = master.tasks.map((task) => ({
+      preferred: preferredTasks.has(task.name),
+      blocked: blockedTasks.has(task.name),
+      unmet: planner.unmet.has(task.requirement),
     }));
     const result = calculateAssignments(master.tasks, flags);
+    const full = blockedTasks.size >= planner.blockSlots;
     for (const [index, task] of result.assignments.entries()) {
       const row = rows[index];
       if (row.unmet) row.unmet.checked = task.unmet;
       row.preferred.checked = task.preferred;
       row.blocked.checked = task.blocked;
+      row.blocked.disabled = full && !task.blocked;
       row.weight.textContent = task.finalWeight;
       row.odds.textContent = percent.format(task.odds);
-      row.weight.closest("tr").classList.toggle("excluded-task", task.finalWeight === 0);
+      row.element.classList.toggle("excluded-task", task.finalWeight === 0);
+    }
+    for (const { name, input } of extraBlocks) {
+      input.checked = blockedTasks.has(name);
+      input.disabled = full && !input.checked;
+    }
+    slotInput.value = planner.blockSlots;
+    slotsUsed.textContent = blockedTasks.size + " / " + planner.blockSlots + " used";
+    slotError.textContent = "";
+
+    const ordered = sortAssignmentIndexes(result.assignments, sortColumn, sortDirection);
+    if (ordered.some((index, position) => body.rows[position] !== rows[index].element)) {
+      const focused = document.activeElement;
+      body.append(...ordered.map((index) => rows[index].element));
+      if (body.contains(focused)) focused.focus({ preventScroll: true });
     }
 
     const formatWeight = (task) => task.blocked ? task.weight + " · blocked" : String(task.weight);
-    showResults(recommendedList, result.recommended.slice(0, recommendedBlockCount), formatWeight);
-    showResults(remainingList, result.recommended.slice(recommendedBlockCount), formatWeight);
+    const recommendedCount = Math.min(planner.blockSlots, result.recommended.length);
+    showResults(recommendedList, result.recommended.slice(0, recommendedCount), formatWeight);
+    showResults(remainingList, result.recommended.slice(recommendedCount), formatWeight);
+    remainingList.start = recommendedCount + 1;
     showResults(preferredList, result.preferred, (task) => percent.format(task.odds));
-    moreResults.hidden = result.recommended.length <= recommendedBlockCount;
+    moreResults.hidden = result.recommended.length <= recommendedCount;
     noRecommendations.hidden = result.recommended.length > 0;
     noPreferred.hidden = result.preferred.length > 0;
   }
@@ -250,25 +306,31 @@ function renderMaster(panel, master) {
   body.addEventListener("change", (event) => {
     const input = event.target;
     if (!(input instanceof HTMLInputElement)) return;
-    const index = input.closest("tr").sectionRowIndex;
+    const task = master.tasks[Number(input.closest("tr").dataset.taskIndex)];
     const flag = input.dataset.flag;
-    if (flag === "unmet") {
-      const { requirement } = master.tasks[index];
-      if (input.checked) unmetRequirements.add(requirement);
-      else unmetRequirements.delete(requirement);
-      for (const refreshMaster of refreshMasters) refreshMaster?.();
+    if (flag === "blocked") {
+      planner.setBlocked(master.id, task.name, input.checked);
     } else {
-      taskChoices[index][flag] = input.checked;
-      refresh();
+      const set = flag === "unmet" ? planner.unmet : preferredTasks;
+      const value = flag === "unmet" ? task.requirement : task.name;
+      if (input.checked) set.add(value);
+      else set.delete(value);
     }
+    refreshAll();
     preferences.save();
   });
 
   return refresh;
 }
+
 const tabs = masters.map(makeTab);
 const panels = masters.map(makePanel);
 const refreshMasters = [];
+
+function refreshAll() {
+  refreshMasters.forEach((refresh) => refresh());
+}
+
 tabList.append(...tabs);
 panelList.append(...panels);
 

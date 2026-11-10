@@ -5,7 +5,7 @@
 
 [Open Slayer Task Blocks](https://kihiralove.github.io/slayer-blocks/) to compare assignment odds and plan blocks for nine Slayer master tabs.
 
-The task lists, amounts, weights, and unlock names come from the supplied Slayer tasks workbook. On a first visit, every checkbox starts unchecked. Matching unlock requirements stay in sync across masters. With consent, a cookie saves the active tab, unlock requirements, preferred tasks, and blocks. Cookie settings in the footer lets you change your choice. Checking an unmet unlock requirement or a block removes that task's weight from the pool. Preferred tasks contribute their remaining odds to the preferred-task total. Recommendations rank available, non-preferred tasks by base weight and mark blocks that are already selected.
+The task lists, amounts, weights, and unlock names come from the supplied Slayer tasks workbook. On a first visit, every checkbox starts unchecked. Matching unlock requirements stay in sync across masters. With consent, a cookie saves the active tab, unlock requirements, preferred tasks, and blocks. Cookie settings in the footer lets you change your choice. Checking an unmet unlock requirement or a block removes that task's weight from the pool. Preferred tasks contribute their remaining odds to the preferred-task total. Set the number of block slots above Assignments. The limit applies to each master's list and defaults to seven. Turael/Aya and Spria share one block list. Sourhogs use a shared slot and only affect Spria's odds. Click an assignment column to sort it, then click again to reverse the order. Recommendations rank available, non-preferred tasks by base weight and mark blocks that are already selected.
 
 ## Run and test
 
