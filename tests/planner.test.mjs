@@ -47,6 +47,33 @@ test("legacy cookies merge blocks, keep per-master preferences, and preserve occ
   assert.deepEqual(restored.requirements, planner.requirements);
 });
 
+test("Mortimer has two independent block slots, including after restoring saved blocks", () => {
+  const masterIndex = masters.findIndex(({ id }) => id === "mortimer");
+  const { id, tasks } = masters[masterIndex];
+  const [first, second, third] = tasks.map(({ name }) => name);
+  const planner = createPlanner(masters);
+
+  assert.equal(planner.blockLimit(id), 2);
+  assert.equal(planner.setBlockSlots(12), true);
+  for (const name of [first, second, third]) planner.setBlocked(id, name, true);
+  assert.deepEqual([...planner.blocked(id)], [first, second]);
+  assert.equal(planner.setBlockSlots(0), true);
+  assert.equal(planner.blockLimit(turael.id), 0);
+
+  const saved = planner.configuration(masterIndex);
+  const restored = createPlanner(masters, saved);
+  assert.equal(restored.initialMaster, masterIndex);
+  assert.equal(restored.blockLimit(id), 2);
+  assert.equal(restored.blockSlots, 0);
+  assert.deepEqual(restored.blocked(id), planner.blocked(id));
+  restored.setBlocked(id, first, false);
+  restored.setBlocked(id, third, true);
+  assert.deepEqual([...restored.blocked(id)], [second, third]);
+
+  saved.choices[id] = "2".repeat(tasks.length);
+  assert.equal(createPlanner(masters, saved).blocked(id).size, 2);
+});
+
 test("sorting handles numeric ranges, odds, and empty cells in both directions", () => {
   const tasks = [
     { amount: "100-200", extendedAmount: "150-200", odds: 0.09 },

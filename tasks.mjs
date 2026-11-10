@@ -1,4 +1,4 @@
-// Assignment data transcribed from the supplied Slayer tasks workbook.
+// Assignment data from the supplied Slayer tasks workbook and the OSRS Wiki.
 export const masters = [
   {
     id: "turael-aya",
@@ -391,6 +391,44 @@ export const masters = [
       {"name": "Warped creatures", "amount": "130-200", "requirement": "Warped reality", "weight": 8},
       {"name": "Waterfiends", "amount": "130-200", "weight": 2},
       {"name": "Wyrms", "amount": "100-160", "extendedAmount": "200-250", "weight": 8}
+    ]
+  },
+  {
+    // https://oldschool.runescape.wiki/w/Mortimer#Tasks
+    id: "mortimer",
+    name: "Mortimer",
+    portraits: ["mortimer"],
+    fixedBlockSlots: 2,
+    tasks: [
+      {"name": "Crawling hands", "amount": "35-50", "requirement": "Priest in Peril", "weight": 10},
+      {"name": "Cave crawlers", "amount": "35-50", "weight": 10},
+      {"name": "Banshees", "amount": "35-50", "requirement": "Priest in Peril", "weight": 10},
+      {"name": "Rockslugs", "amount": "35-50", "weight": 10},
+      {"name": "Cockatrice", "amount": "35-50", "requirement": "20 Defence", "weight": 10},
+      {"name": "Pyrefiends", "amount": "35-50", "weight": 10},
+      {"name": "Basilisks", "amount": "40-60", "extendedAmount": "200-250", "requirement": "20 Defence", "weight": 10},
+      {"name": "Infernal mages", "amount": "35-50", "requirement": "Priest in Peril", "weight": 10},
+      {"name": "Bloodvelds", "amount": "120-180", "extendedAmount": "200-250", "requirement": "Priest in Peril", "weight": 8},
+      {"name": "Gryphons", "amount": "80-120", "extendedAmount": "160-200", "requirement": "Troubled Tortugans", "weight": 10},
+      {"name": "Jellies", "amount": "80-120", "weight": 10},
+      {"name": "Custodian stalkers", "amount": "80-120", "extendedAmount": "200-250", "requirement": "Shadows of Custodia", "weight": 8},
+      {"name": "Turoth", "amount": "80-120", "weight": 10},
+      {"name": "Warped creatures", "amount": "80-120", "requirement": "The Path of Glouphrie", "weight": 10},
+      {"name": "Cave horrors", "amount": "80-120", "extendedAmount": "200-250", "requirement": "Cabin Fever", "weight": 10},
+      {"name": "Aberrant spectres", "amount": "80-120", "extendedAmount": "200-250", "requirement": "Priest in Peril", "weight": 10},
+      {"name": "Wyrms", "amount": "80-120", "extendedAmount": "200-250", "weight": 10},
+      {"name": "Dust devils", "amount": "120-180", "extendedAmount": "200-250", "requirement": "Desert Treasure I (partial)", "weight": 8},
+      {"name": "Kurask", "amount": "40-60", "weight": 10},
+      {"name": "Venators", "amount": "120-180", "requirement": "74 Slayer and The Blood Moon Rises", "weight": 10},
+      {"name": "Gargoyles", "amount": "120-180", "extendedAmount": "200-250", "requirement": "75 Slayer and Priest in Peril", "weight": 10},
+      {"name": "Aquanites", "amount": "40-60", "extendedAmount": "150-200", "requirement": "78 Slayer and 73 Sailing", "weight": 10},
+      {"name": "Nechryael", "amount": "150-200", "extendedAmount": "200-250", "requirement": "80 Slayer and Priest in Peril", "weight": 8},
+      {"name": "Drakes", "amount": "40-60", "requirement": "84 Slayer", "weight": 10},
+      {"name": "Abyssal demons", "amount": "120-180", "extendedAmount": "200-250", "requirement": "85 Slayer and either Priest in Peril or Fairytale II", "weight": 8},
+      {"name": "Dark beasts", "amount": "40-60", "extendedAmount": "110-135", "requirement": "90 Slayer and started Mourning's End Part II", "weight": 10},
+      {"name": "Araxytes", "amount": "120-180", "extendedAmount": "200-250", "requirement": "92 Slayer and Priest in Peril", "weight": 8},
+      {"name": "Smoke devils", "amount": "80-120", "requirement": "93 Slayer", "weight": 8},
+      {"name": "Hydras", "amount": "150-200", "requirement": "95 Slayer", "weight": 10}
     ]
   }
 ];

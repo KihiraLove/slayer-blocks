@@ -7,12 +7,18 @@ export function blockListKey(masterId) {
 
 export function createPlanner(masters, config) {
   const blockLists = new Map(masters.map(({ id }) => [blockListKey(id), new Set()]));
+  const fixedBlockSlots = new Map(masters
+    .filter((master) => master.fixedBlockSlots !== undefined)
+    .map(({ id, fixedBlockSlots }) => [blockListKey(id), fixedBlockSlots]));
   const preferred = new Map(masters.map(({ id }) => [id, new Set()]));
   const requirements = new Set();
   const blocked = (masterId) => blockLists.get(blockListKey(masterId));
-  const minimumBlockSlots = () => Math.max(0, ...[...blockLists.values()].map((list) => list.size));
+  const minimumBlockSlots = () => Math.max(0, ...[...blockLists]
+    .filter(([key]) => !fixedBlockSlots.has(key))
+    .map(([, list]) => list.size));
   let initialMaster = 0;
   let blockSlots = DEFAULT_BLOCK_SLOTS;
+  const blockLimit = (masterId) => fixedBlockSlots.get(blockListKey(masterId)) ?? blockSlots;
 
   if (config?.version === CONFIG_VERSION) {
     const masterIndex = masters.findIndex(({ id }) => id === config.master);
@@ -27,10 +33,12 @@ export function createPlanner(masters, config) {
     for (const { id, tasks } of masters) {
       const saved = config.choices?.[id];
       if (typeof saved !== "string" || saved.length !== tasks.length || !/^[0-3]+$/.test(saved)) continue;
+      const list = blocked(id);
+      const fixedLimit = fixedBlockSlots.get(blockListKey(id)) ?? Infinity;
       for (const [index, { name }] of tasks.entries()) {
         const flags = Number(saved[index]);
         if (flags & 1) preferred.get(id).add(name);
-        if (flags & 2) blocked(id).add(name);
+        if ((flags & 2) && list.size < fixedLimit) list.add(name);
       }
     }
     // Preserve older configurations that had no limit and stored the two block lists separately.
@@ -47,7 +55,7 @@ export function createPlanner(masters, config) {
   function setBlocked(masterId, name, checked) {
     const list = blocked(masterId);
     if (!checked) list.delete(name);
-    else if (list.size < blockSlots) list.add(name);
+    else if (list.size < blockLimit(masterId)) list.add(name);
   }
 
   function configuration(masterIndex) {
@@ -69,6 +77,7 @@ export function createPlanner(masters, config) {
     preferred,
     blocked,
     get blockSlots() { return blockSlots; },
+    blockLimit,
     minimumBlockSlots,
     setBlockSlots,
     setBlocked,

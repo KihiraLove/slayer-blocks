@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { STOP_THE_WYVERN, calculateAssignments } from "../calculator.mjs";
 import { masters } from "../tasks.mjs";
 
-test("all workbook tabs start with only available tasks and zero preferred odds", () => {
-  const expected = [172, 178, 161, 219, 333, 323, 210, 227, 244];
-  assert.equal(masters.reduce((count, master) => count + master.tasks.length, 0), 330);
+test("all master tabs start with only available tasks and zero preferred odds", () => {
+  const expected = [172, 178, 161, 219, 333, 323, 210, 227, 244, 70];
+  assert.equal(masters.reduce((count, master) => count + master.tasks.length, 0), 359);
   assert.deepEqual(masters.map(({ tasks }) => {
     const result = calculateAssignments(tasks);
     assert.equal(result.preferredChance, 0);

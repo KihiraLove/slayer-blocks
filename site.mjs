@@ -1,8 +1,8 @@
 import { mountToolkitCookiePreferences } from "./toolkit-common/cookies.mjs";
 import { mountToolkitHeader, mountToolkitFooter } from "./toolkit-common/toolkit.mjs";
 import { STOP_THE_WYVERN, calculateAssignments, sortAssignmentIndexes } from "./calculator.mjs?v=unlock-rules";
-import { blockListKey, createPlanner } from "./planner.mjs?v=unlock-rules";
-import { masters } from "./tasks.mjs?v=block-slots";
+import { blockListKey, createPlanner } from "./planner.mjs?v=mortimer";
+import { masters } from "./tasks.mjs?v=mortimer";
 
 const preferences = mountToolkitCookiePreferences({
   consentCookie: "slayer_cookie_consent",
@@ -150,10 +150,10 @@ function renderMaster(panel, master) {
             <small data-shared-list hidden></small>
           </div>
           <div class="block-slots">
-            <label>
+            ${master.fixedBlockSlots === undefined ? `<label>
               <span>Number of block slots</span>
               <input type="number" min="0" step="1" inputmode="numeric">
-            </label>
+            </label>` : ""}
             <small data-slots-used aria-live="polite"></small>
           </div>
         </div>
@@ -220,7 +220,7 @@ function renderMaster(panel, master) {
   const slotInput = panel.querySelector(".block-slots input");
   const slotsUsed = panel.querySelector("[data-slots-used]");
   const slotError = panel.querySelector("[data-slot-error]");
-  slotInput.addEventListener("change", () => {
+  slotInput?.addEventListener("change", () => {
     if (!planner.setBlockSlots(slotInput.valueAsNumber)) {
       slotInput.value = planner.blockSlots;
       const minimum = planner.minimumBlockSlots();
@@ -261,7 +261,8 @@ function renderMaster(panel, master) {
       requirementChecked: planner.requirements.has(task.requirement),
     }));
     const result = calculateAssignments(tasks, flags);
-    const full = blockedTasks.size >= planner.blockSlots;
+    const blockLimit = planner.blockLimit(master.id);
+    const full = blockedTasks.size >= blockLimit;
     for (const [index, task] of result.assignments.entries()) {
       const row = rows[index];
       if (row.requirement) row.requirement.checked = task.requirementChecked;
@@ -272,8 +273,8 @@ function renderMaster(panel, master) {
       row.odds.textContent = percent.format(task.odds);
       row.element.classList.toggle("excluded-task", task.finalWeight === 0);
     }
-    slotInput.value = planner.blockSlots;
-    slotsUsed.textContent = blockedTasks.size + " used";
+    if (slotInput) slotInput.value = blockLimit;
+    slotsUsed.textContent = slotInput ? blockedTasks.size + " used" : blockedTasks.size + " / " + blockLimit + " Used";
     slotError.textContent = "";
 
     const ordered = sortAssignmentIndexes(result.assignments, sortColumn, sortDirection);
@@ -284,7 +285,7 @@ function renderMaster(panel, master) {
     }
 
     const formatWeight = (task) => task.blocked ? task.weight + " · blocked" : String(task.weight);
-    const recommendedCount = Math.min(planner.blockSlots, result.recommended.length);
+    const recommendedCount = Math.min(blockLimit, result.recommended.length);
     showResults(recommendedList, result.recommended.slice(0, recommendedCount), formatWeight);
     showResults(remainingList, result.recommended.slice(recommendedCount), formatWeight);
     remainingList.start = recommendedCount + 1;
