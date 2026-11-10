@@ -1,7 +1,7 @@
 import { mountToolkitCookiePreferences } from "./toolkit-common/cookies.mjs";
 import { mountToolkitHeader, mountToolkitFooter } from "./toolkit-common/toolkit.mjs";
-import { calculateAssignments, sortAssignmentIndexes } from "./calculator.mjs?v=block-slots";
-import { blockListKey, createPlanner } from "./planner.mjs";
+import { STOP_THE_WYVERN, calculateAssignments, sortAssignmentIndexes } from "./calculator.mjs?v=unlock-rules";
+import { blockListKey, createPlanner } from "./planner.mjs?v=unlock-rules";
 import { masters } from "./tasks.mjs?v=block-slots";
 
 const preferences = mountToolkitCookiePreferences({
@@ -98,23 +98,31 @@ function makeTaskRow(body, task, index) {
   name.scope = "row";
   name.setAttribute("role", "rowheader");
   name.textContent = task.name;
+  if (task.note) {
+    const note = document.createElement("small");
+    note.className = "task-note";
+    note.textContent = "(" + task.note + ")";
+    name.append(" ", note);
+  }
   row.append(name);
 
-  addValue(row, "Amount", task.amount);
+  addValue(row, "Amount", task.amount ?? "—");
   addValue(row, "Extended", task.extendedAmount ?? "—");
-  let unmet = null;
+  let requirement = null;
   if (task.requirement) {
-    unmet = addFlag(row, "Unlock requirement", "Mark " + task.name + " unavailable", "unmet", task.requirement);
+    const label = task.requirement === STOP_THE_WYVERN ? "Stop assigning " + task.name : "Unlock " + task.name;
+    requirement = addFlag(row, "Unlock requirement", label, "requirementChecked", task.requirement);
   } else {
-    row.insertCell().className = "empty-requirement";
+    row.insertCell();
   }
   addValue(row, "Weight", task.weight);
-  const preferred = addFlag(row, "Preferred", "Prefer " + task.name, "preferred");
+  const preferred = task.weight > 0 ? addFlag(row, "Preferred", "Prefer " + task.name, "preferred") : null;
+  if (!preferred) row.insertCell();
   const blocked = addFlag(row, "Blocked", "Block " + task.name, "blocked");
   const weight = addValue(row, "Final weight", "");
   const odds = addValue(row, "Odds", "");
 
-  return { element: row, unmet, preferred, blocked, weight, odds };
+  return { element: row, requirement, preferred, blocked, weight, odds };
 }
 
 function showResults(list, tasks, formatValue) {
@@ -150,7 +158,6 @@ function renderMaster(panel, master) {
           </div>
         </div>
         <p class="slot-error" data-slot-error role="status"></p>
-        <div class="block-only" data-block-only hidden></div>
         <div class="task-table-wrap" role="region" aria-label="Scrollable assignment table" tabindex="0">
           <table class="task-table" role="table" aria-label="Slayer assignments">
             <thead role="rowgroup">
@@ -187,8 +194,20 @@ function renderMaster(panel, master) {
         </section>
       </div>
     </div>`;
+  const tasks = [...master.tasks];
+  const partner = masters.find((other) => other.id !== master.id && blockListKey(other.id) === blockListKey(master.id));
+  if (partner) {
+    const shared = panel.querySelector("[data-shared-list]");
+    shared.textContent = master.id === "spria" ? "Blocklist shared with Turael/Aya" : "Block list shared with Spria";
+    shared.hidden = false;
+    for (const { name } of partner.tasks) {
+      if (master.tasks.some((task) => task.name === name)) continue;
+      tasks.push({ name, note: partner.name + " only", weight: 0 });
+    }
+  }
+
   const body = panel.querySelector("tbody");
-  const rows = master.tasks.map((task, index) => makeTaskRow(body, task, index));
+  const rows = tasks.map((task, index) => makeTaskRow(body, task, index));
   const recommendedList = panel.querySelector("[data-recommended]");
   const remainingList = panel.querySelector("[data-remaining]");
   const preferredList = panel.querySelector("[data-preferred]");
@@ -198,30 +217,6 @@ function renderMaster(panel, master) {
 
   const blockedTasks = planner.blocked(master.id);
   const preferredTasks = planner.preferred.get(master.id);
-  const partner = masters.find((other) => other.id !== master.id && blockListKey(other.id) === blockListKey(master.id));
-  const blockOnly = panel.querySelector("[data-block-only]");
-  const extraBlocks = [];
-  if (partner) {
-    const shared = panel.querySelector("[data-shared-list]");
-    shared.textContent = master.id === "spria" ? "Blocklist shared with Turael/Aya" : "Block list shared with Spria";
-    shared.hidden = false;
-    for (const task of partner.tasks) {
-      if (master.tasks.some(({ name }) => name === task.name)) continue;
-      const label = document.createElement("label");
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      input.setAttribute("aria-label", "Block " + task.name);
-      label.append(input, task.name + " (" + partner.name + " only)");
-      blockOnly.append(label);
-      extraBlocks.push({ name: task.name, input });
-      input.addEventListener("change", () => {
-        planner.setBlocked(master.id, task.name, input.checked);
-        refreshAll();
-        preferences.save();
-      });
-    }
-    blockOnly.hidden = extraBlocks.length === 0;
-  }
   const slotInput = panel.querySelector(".block-slots input");
   const slotsUsed = panel.querySelector("[data-slots-used]");
   const slotError = panel.querySelector("[data-slot-error]");
@@ -260,29 +255,25 @@ function renderMaster(panel, master) {
   updateSortHeader();
 
   function refresh() {
-    const flags = master.tasks.map((task) => ({
+    const flags = tasks.map((task) => ({
       preferred: preferredTasks.has(task.name),
       blocked: blockedTasks.has(task.name),
-      unmet: planner.unmet.has(task.requirement),
+      requirementChecked: planner.requirements.has(task.requirement),
     }));
-    const result = calculateAssignments(master.tasks, flags);
+    const result = calculateAssignments(tasks, flags);
     const full = blockedTasks.size >= planner.blockSlots;
     for (const [index, task] of result.assignments.entries()) {
       const row = rows[index];
-      if (row.unmet) row.unmet.checked = task.unmet;
-      row.preferred.checked = task.preferred;
+      if (row.requirement) row.requirement.checked = task.requirementChecked;
+      if (row.preferred) row.preferred.checked = task.preferred;
       row.blocked.checked = task.blocked;
       row.blocked.disabled = full && !task.blocked;
       row.weight.textContent = task.finalWeight;
       row.odds.textContent = percent.format(task.odds);
       row.element.classList.toggle("excluded-task", task.finalWeight === 0);
     }
-    for (const { name, input } of extraBlocks) {
-      input.checked = blockedTasks.has(name);
-      input.disabled = full && !input.checked;
-    }
     slotInput.value = planner.blockSlots;
-    slotsUsed.textContent = blockedTasks.size + " / " + planner.blockSlots + " used";
+    slotsUsed.textContent = blockedTasks.size + " used";
     slotError.textContent = "";
 
     const ordered = sortAssignmentIndexes(result.assignments, sortColumn, sortDirection);
@@ -306,13 +297,13 @@ function renderMaster(panel, master) {
   body.addEventListener("change", (event) => {
     const input = event.target;
     if (!(input instanceof HTMLInputElement)) return;
-    const task = master.tasks[Number(input.closest("tr").dataset.taskIndex)];
+    const task = tasks[Number(input.closest("tr").dataset.taskIndex)];
     const flag = input.dataset.flag;
     if (flag === "blocked") {
       planner.setBlocked(master.id, task.name, input.checked);
     } else {
-      const set = flag === "unmet" ? planner.unmet : preferredTasks;
-      const value = flag === "unmet" ? task.requirement : task.name;
+      const set = flag === "requirementChecked" ? planner.requirements : preferredTasks;
+      const value = flag === "requirementChecked" ? task.requirement : task.name;
       if (input.checked) set.add(value);
       else set.delete(value);
     }

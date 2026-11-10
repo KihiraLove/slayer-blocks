@@ -28,6 +28,7 @@ test("legacy cookies merge blocks, keep per-master preferences, and preserve occ
   const config = {
     version: 1,
     master: spria.id,
+    unmet: ["Watch the birdie", "Stop the wyvern"],
     choices: {
       [turael.id]: "3".repeat(8) + "0".repeat(16),
       [spria.id]: spria.tasks.map(({ name }) => name === "Sourhogs" ? "2" : "0").join(""),
@@ -35,6 +36,7 @@ test("legacy cookies merge blocks, keep per-master preferences, and preserve occ
   };
   const planner = createPlanner(masters, config);
   assert.equal(planner.initialMaster, 1);
+  assert.deepEqual([...planner.requirements], ["Watch the birdie", "Stop the wyvern"]);
   assert.equal(planner.blockSlots, 9);
   assert.equal(planner.blocked(turael.id).has("Sourhogs"), true);
   assert.equal(planner.preferred.get(turael.id).size, 8);
@@ -42,6 +44,7 @@ test("legacy cookies merge blocks, keep per-master preferences, and preserve occ
   const restored = createPlanner(masters, planner.configuration(1));
   assert.deepEqual(restored.blocked(spria.id), planner.blocked(spria.id));
   assert.equal(restored.blockSlots, 9);
+  assert.deepEqual(restored.requirements, planner.requirements);
 });
 
 test("sorting handles numeric ranges, odds, and empty cells in both directions", () => {

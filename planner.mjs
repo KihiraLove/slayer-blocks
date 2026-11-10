@@ -8,7 +8,7 @@ export function blockListKey(masterId) {
 export function createPlanner(masters, config) {
   const blockLists = new Map(masters.map(({ id }) => [blockListKey(id), new Set()]));
   const preferred = new Map(masters.map(({ id }) => [id, new Set()]));
-  const unmet = new Set();
+  const requirements = new Set();
   const blocked = (masterId) => blockLists.get(blockListKey(masterId));
   const minimumBlockSlots = () => Math.max(0, ...[...blockLists.values()].map((list) => list.size));
   let initialMaster = 0;
@@ -17,10 +17,11 @@ export function createPlanner(masters, config) {
   if (config?.version === CONFIG_VERSION) {
     const masterIndex = masters.findIndex(({ id }) => id === config.master);
     if (masterIndex !== -1) initialMaster = masterIndex;
-    if (Array.isArray(config.unmet)) {
+    const savedRequirements = config.requirements ?? config.unmet;
+    if (Array.isArray(savedRequirements)) {
       const knownRequirements = new Set(masters.flatMap(({ tasks }) => tasks.map(({ requirement }) => requirement)).filter(Boolean));
-      for (const requirement of config.unmet) {
-        if (knownRequirements.has(requirement)) unmet.add(requirement);
+      for (const requirement of savedRequirements) {
+        if (knownRequirements.has(requirement)) requirements.add(requirement);
       }
     }
     for (const { id, tasks } of masters) {
@@ -53,7 +54,7 @@ export function createPlanner(masters, config) {
     return {
       version: CONFIG_VERSION,
       master: masters[masterIndex].id,
-      unmet: [...unmet],
+      requirements: [...requirements],
       blockSlots,
       // These strings use the task order in tasks.mjs. Bump the version if that order changes.
       choices: Object.fromEntries(masters.map(({ id, tasks }) => [
@@ -64,7 +65,7 @@ export function createPlanner(masters, config) {
 
   return {
     initialMaster,
-    unmet,
+    requirements,
     preferred,
     blocked,
     get blockSlots() { return blockSlots; },

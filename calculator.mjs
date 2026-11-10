@@ -1,7 +1,12 @@
+export const STOP_THE_WYVERN = "Stop the wyvern";
+
 export function calculateAssignments(tasks, flags = []) {
   const assignments = tasks.map((task, index) => {
-    const { unmet = false, preferred = false, blocked = false } = flags[index] ?? {};
-    return { ...task, unmet, preferred, blocked, finalWeight: unmet || blocked ? 0 : task.weight };
+    const { requirementChecked = false, preferred = false, blocked = false } = flags[index] ?? {};
+    const eligible = task.requirement === STOP_THE_WYVERN
+      ? !requirementChecked
+      : !task.requirement || requirementChecked;
+    return { ...task, requirementChecked, eligible, preferred, blocked, finalWeight: eligible && !blocked ? task.weight : 0 };
   });
   const totalWeight = assignments.reduce((total, task) => total + task.finalWeight, 0);
   for (const task of assignments) {
@@ -9,7 +14,7 @@ export function calculateAssignments(tasks, flags = []) {
   }
 
   const byWeight = [...assignments].sort((left, right) => right.weight - left.weight);
-  const recommended = byWeight.filter((task) => !task.unmet && !task.preferred);
+  const recommended = byWeight.filter((task) => task.weight > 0 && task.eligible && !task.preferred);
   const preferred = byWeight.filter((task) => task.preferred);
   return {
     assignments,
